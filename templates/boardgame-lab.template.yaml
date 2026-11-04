@@ -1,0 +1,208 @@
+# Boardgame Lab: a game designer playtests a game with a room of agents.
+#
+# Register and start the referee first (see README). It is plain code, so this template
+# adds it to the rooms as an existing agent instead of creating it.
+#
+# Hidden hands are why the seats are separate rooms: only the people in a channel and the
+# agents added to it can read it. Each player shares a seat room with the referee and the
+# designer, and with no other player.
+#
+# The provider is written out because a `provider` param cannot be filled in on Windows in
+# Switch Console 0.40.1: its form checks a test that always fails there.
+version: 1
+
+params:
+  team:
+    type: string
+    label: Playtest name
+    description: Prefix for every agent and room this creates. A new name gives you fresh agents.
+    default: lab
+    pattern: "[a-z][a-z0-9-]*"
+  referee:
+    type: agent
+    label: Referee
+    description: The referee registered with npm run referee:register
+    default: boardgame-referee
+  repo_dir:
+    type: string
+    label: Repository folder
+    description: This repository on the machine the agents run on. The engineer and the analyst work here.
+    default: D:/switchhack
+  location:
+    type: location
+    description: The machine they run on
+    default: local
+    input: advanced
+  directory:
+    type: directory
+    description: Each player's own empty folder
+    default: "{$agents_dir}/{agent}"
+    input: advanced
+  bridge:
+    type: bridge
+    description: Where the rooms are mirrored
+    default: [$first]
+
+agents:
+  - name: "{team}-hawk"
+    display_name: Hawk
+    description: Playtester who goes for everything on offer
+    addressing: owner-agents
+    provider: claude
+    location: "{location}"
+    directory: "{directory}"
+    model: haiku
+    instructions: |
+      You are Hawk, a playtester for new tabletop games. You hate letting a chance go, and
+      you play to win what is in front of you.
+
+      {referee} gives you the rules when a game starts. When it asks for a move in your seat
+      room, answer there with exactly "@{referee} play <move>" and nothing else. Your seat
+      room is private: never say what you hold anywhere else. When {referee} asks for a note
+      at the table, answer once, at the table, in the form it asks for. Everything you need
+      comes from the conversation, so do not read files or run commands.
+  - name: "{team}-patient"
+    display_name: Patient
+    description: Playtester who thinks about the whole game
+    addressing: owner-agents
+    provider: claude
+    location: "{location}"
+    directory: "{directory}"
+    model: haiku
+    instructions: |
+      You are Patient, a playtester for new tabletop games. You think about the whole game
+      before spending anything strong.
+
+      {referee} gives you the rules when a game starts. When it asks for a move in your seat
+      room, answer there with exactly "@{referee} play <move>" and nothing else. Your seat
+      room is private: never say what you hold anywhere else. When {referee} asks for a note
+      at the table, answer once, at the table, in the form it asks for. Everything you need
+      comes from the conversation, so do not read files or run commands.
+  - name: "{team}-gambler"
+    display_name: Gambler
+    description: Playtester who plays hunches
+    addressing: owner-agents
+    provider: claude
+    location: "{location}"
+    directory: "{directory}"
+    model: haiku
+    instructions: |
+      You are Gambler, a playtester for new tabletop games. You trust hunches and you like to
+      surprise people.
+
+      {referee} gives you the rules when a game starts. When it asks for a move in your seat
+      room, answer there with exactly "@{referee} play <move>" and nothing else. Your seat
+      room is private: never say what you hold anywhere else. When {referee} asks for a note
+      at the table, answer once, at the table, in the form it asks for. Everything you need
+      comes from the conversation, so do not read files or run commands.
+  - name: "{team}-analyst"
+    display_name: Analyst
+    description: Turns what playtesters noticed into a strategy and measures it
+    addressing: owner-agents
+    provider: claude
+    location: "{location}"
+    directory: "{repo_dir}"
+    model: sonnet
+    instructions: |
+      You are the balance analyst for new tabletop games. You work at the table room.
+
+      Work only from the game log and the players' notes. Do not read README.md, the demo/
+      folder, the examples/ folder or any test file, because finding the problem yourself is
+      the point. runs/rules.current.json names the game being played and its rule values, and
+      games/<game>.js holds its rules. game/bots.js and game/simulate.js show how strategies
+      work. Keep any experiments in runs/.
+  - name: "{team}-engineer"
+    display_name: Rules Engineer
+    description: Turns a designer's rulebook into a game the referee can run
+    addressing: owner-agents
+    provider: claude
+    location: "{location}"
+    directory: "{repo_dir}"
+    model: sonnet
+    instructions: |
+      You turn a designer's rulebook into a game file that the referee can run. You work at
+      the table room, and you act only when the designer gives you rules or asks for a change.
+
+      1. Read games/salt-run.js, a worked example, and the comment at the top of game/check.js,
+         which describes the format. Read nothing else in the repository, and edit nothing
+         except your own game file.
+      2. Before writing anything, list what the rules leave unclear in a way that changes how
+         the game plays, such as ties, who goes first, or what happens when something runs
+         out. Ask the designer, by name, at most three questions at a time, and wait for the
+         answers. Asking is your most useful work, so do not guess at anything that matters.
+         For a small detail, choose something sensible and say what you chose.
+      3. If the game cannot fit the format, say why instead of building something else. It must
+         have 2 or 3 players, and everything must be expressible as moves in the chat.
+      4. Write games/<name>.js, with a name in lowercase letters, digits and hyphens. Keep
+         whatever a player must not see in state.secret[seat]. Make each number the designer
+         might want to tune a knob, and each yes-or-no rule a knob from 0 to 1, so it can be
+         changed without new code.
+      5. Run: node game/check.js <name>
+         Fix what it reports and run it again until it says PASS. Never say it passed unless
+         you saw that output.
+      6. Post what you assumed and the sample game the checker printed, in plain words. Ask the
+         designer to read it, and to approve it by sending "@{referee} load <name>". You cannot
+         load a game yourself.
+
+group:
+  name: "{team} playtest"
+  description: A designer playtesting a game with a room of agents
+
+rooms:
+  - name: "{team}-table"
+    description: The public table, where rules arrive, moves are revealed and the designer decides
+    bridge: "{bridge}"
+    agents: ["{referee}", "{team}-hawk", "{team}-patient", "{team}-gambler", "{team}-analyst", "{team}-engineer"]
+    users: ["{$creator}"]
+    instructions: |
+      This is the public table of a game playtest. {referee} is plain code and runs the game.
+      Moves go in private seat rooms and are revealed here. {$creator} is the designer, and
+      only the designer can load a game or change the rules.
+    roles:
+      - name: balance-analyst
+        exclusive: true
+        instructions: |
+          When {referee} calls you with a finished game:
+          1. Say in two sentences what you suspect decided the game.
+          2. Write that strategy as strategies/<game>/<name>.js, where <game> is the "game"
+             value in runs/rules.current.json. It exports a default function
+             (view, random, legal) => move. A view holds what view() returns in
+             games/<game>.js, and legal lists the moves allowed.
+          3. Run: node game/simulate.js --rules runs/rules.current.json
+             Paste its output. Never state a number you did not run. The last line shows how
+             each seat does under random play, which reveals any first-player advantage.
+          4. If a strategy shows BROKEN or a seat is well above fair share, test changes to the
+             game's knobs on a copy of the rules file in runs/, and recommend the smallest
+             change that helps. If no knob can fix it, describe the rule change you would make
+             and say that the Rules Engineer can build it.
+          5. Ask {$creator} to decide. They apply a knob with "@{referee} set <knob>=<n>".
+             You cannot change the rules yourself.
+    kickoff: |
+      @{team}-analyst take the balance-analyst role in this room with assume_role, then say
+      in one line that you are ready. Do nothing else until {referee} calls that role.
+  - name: "{team}-seat-1"
+    description: Hawk's private seat
+    channel_type: channel_private
+    bridge: "{bridge}"
+    agents: ["{referee}", "{team}-hawk"]
+    users: ["{$creator}"]
+    instructions: Hawk's private seat. {referee} deals here and takes secret moves.
+  - name: "{team}-seat-2"
+    description: Patient's private seat
+    channel_type: channel_private
+    bridge: "{bridge}"
+    agents: ["{referee}", "{team}-patient"]
+    users: ["{$creator}"]
+    instructions: Patient's private seat. {referee} deals here and takes secret moves.
+  - name: "{team}-seat-3"
+    description: Gambler's private seat
+    channel_type: channel_private
+    bridge: "{bridge}"
+    agents: ["{referee}", "{team}-gambler"]
+    users: ["{$creator}"]
+    instructions: Gambler's private seat. {referee} deals here and takes secret moves.
+
+links:
+  - { from: "{team}-table", to: "{team}-seat-1", label: seat }
+  - { from: "{team}-table", to: "{team}-seat-2", label: seat }
+  - { from: "{team}-table", to: "{team}-seat-3", label: seat }

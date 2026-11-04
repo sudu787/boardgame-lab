@@ -1,0 +1,10 @@
+{
+  "game": "salt-run",
+  "name": "Salt Run v1",
+  "players": 3,
+  "rounds": 4,
+  "deckSize": 15,
+  "handSize": 4,
+  "cargo": [2, 3, 3, 4, 4, 5, 5, 6],
+  "finalTide": 3
+}
