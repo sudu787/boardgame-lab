@@ -8,6 +8,10 @@ Built on [Switch](https://github.com/sandbox-quantum/switch) for the Flip the Sw
 
 Small game designers struggle to find enough playtesters, and a broken rule can survive for months. Asking one AI model to "play all the seats" doesn't work for games with hidden information, because a single model sees every hand.
 
+Here, each AI player gets its hand in its own private room:
+
+![The referee deals Hawk a private hand of 4, 8 and 11 in the lab-seat-1 room](docs/images/private-seat-room.png)
+
 ## What happened in a real run
 
 We wrote a small game, Salt Run, and **planted a flaw on purpose**: the last cargo lot is worth triple, "for a dramatic finish". The players and the analyst were not told.
@@ -48,7 +52,11 @@ We pasted [`examples/ember-line.md`](examples/ember-line.md), a short turn-based
 1. The Rules Engineer asked three questions before writing anything, including one we hadn't planned: "If you play a card lower than the last card, and that last card was yours, do you still give yourself the 3 points?"
 2. With the answers, it wrote the game in under a minute, and the checker passed it.
 3. Three agents played a game. The analyst wrote its own strategy, `holdopen`, and found the real problem: **seat 1 wins only 28.1% under random play**, against about 36% for seats 2 and 3. The opening card scores nothing and sets the bar for everyone else.
+
+   ![The analyst's report in lab-table: its holdopen strategy at 47.2%, and seat 1 at 28.1% under random play](docs/images/analyst-findings.png)
 4. It tested six rule changes, warned that raising the number of holds would make `holdopen` broken, and recommended a higher penalty. The designer applied it:
+
+   ![The designer sends set penalty=8 and the referee replies with a before-and-after table](docs/images/designer-rule-change.png)
 
 | With `penalty` changed from 3 to 8 | Before | After |
 |---|---:|---:|
@@ -61,6 +69,21 @@ We pasted [`examples/ember-line.md`](examples/ember-line.md), a short turn-based
 | `hawk` | 16.8% | 20.4% |
 
 This helps seat 1 but doesn't fully fix it, and seat 2 is still above fair share. The analyst said so too, and suggested a rule change, such as a small bonus for opening, for the Engineer to build.
+
+So we asked the Engineer for that in plain words: a new version, `games/ember-line-v2.js`, where the player who opens the Line scores a flat 3 points. It changed only that rule, the checker passed it, and it said it hadn't measured whether the seats had evened out. Loading the new version with `@boardgame-referee load ember-line-v2` made the referee measure both versions and post the comparison:
+
+![The referee loads ember-line-v2, passes the checker, shows a sample game and posts a before-and-after table](docs/images/new-version-before-after.png)
+
+| With an opening bonus of 3 | Before | After |
+|---|---:|---:|
+| Seat 1, all random | **28.1%** | 32.4% |
+| Seat 2, all random | 35.6% | 34.1% |
+| Seat 3, all random | 36.2% | 33.5% |
+| `climber` | 44.5% | 48.6% |
+| `gambler` | 28.0% | 28.8% |
+| `hawk` | 16.8% | 17.7% |
+
+The seats are now close to the fair share of 33.3%, but there's a trade-off: `climber` got stronger and is close to the 50% line for a broken strategy. The designer decides whether that's acceptable.
 
 ### The same test on a second computer, with Codex
 
