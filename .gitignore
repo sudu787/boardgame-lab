@@ -5,4 +5,5 @@ strategies/
 lab/
 graphify-out/
 .claude/
+.serena/
 node_modules/

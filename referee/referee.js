@@ -1,4 +1,4 @@
-// The Salt Run referee: a Switch agent made of plain code, with no LLM. It connects over
+// The referee: a Switch agent made of plain code, with no LLM. It connects over
 // Switch's agent protocol and runs the game in table.js.
 //   node --env-file-if-exists=.env referee/referee.js register
 //   node --env-file-if-exists=.env referee/referee.js
@@ -23,7 +23,9 @@ function localServerDir() {
 
 function localApiUrl() {
   const ports = join(localServerDir(), 'ports.json');
-  if (!existsSync(ports)) throw new Error('No local Switch server found. Set SWITCH_URL in .env.');
+  if (!existsSync(ports)) {
+    throw new Error('No local Switch server found. In Switch Console, choose "Run a server on this computer" first. For another server, set SWITCH_URL in .env.');
+  }
   return `http://127.0.0.1:${JSON.parse(readFileSync(ports, 'utf8')).api}`;
 }
 
@@ -36,12 +38,17 @@ const LAST_GAME = join(ROOT, 'runs', 'last-game.txt');
 const SIMULATE_TIMEOUT_MS = 60000;
 const CHECK_TIMEOUT_MS = 60000;
 const RECONNECT_MS = 2000;
+const REQUEST_TIMEOUT_MS = 30000;
+const WATCHDOG_MS = 5000;
+const STALL_MS = 15000; // the server pings every 2 seconds
 
 async function request(token, method, path, body) {
+  // The timeout stops one stuck call from holding up every message queued behind it.
   const response = await fetch(BASE + path, {
     method,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const text = await response.text();
   if (!response.ok) throw new Error(`${method} ${path}: ${response.status} ${text.slice(0, 300)}`);
@@ -80,7 +87,7 @@ async function register() {
   const { id, api_key } = await request(await registrationKey(), 'POST', '/agents', {
     name: NAME,
     display_name: 'Referee',
-    description: 'Plain code that deals Salt Run, enforces its rules and runs the simulator.',
+    description: 'Plain code that runs the game, enforces its rules and runs the simulator.',
     connector_type: 'boardgame-lab',
     integration_profile: {
       connection_model: 'always_on',
@@ -90,11 +97,8 @@ async function register() {
       event_reporting: [],
     },
   });
+  // A new agent already answers its owner and the owner's other agents, which is what the referee needs.
   writeFileSync(IDENTITY, JSON.stringify({ id, api_key, connection_id: randomUUID() }, null, 2));
-  await request(api_key, 'POST', `/agents/${id}/ops/update_agent_detail`, {
-    agent_id: id,
-    addressing: 'owner_and_owner_agents',
-  });
   console.log(`Registered ${NAME}. Its key is in ${IDENTITY}.`);
 }
 
@@ -188,6 +192,7 @@ async function run() {
   let queue = Promise.resolve();
   let cursor = null;
   let generation = null;
+  let current = null;
 
   async function onMessage(data) {
     const { sender_name: sender, body } = data.payload;
@@ -215,9 +220,23 @@ async function run() {
     const socket = new WebSocket(`${BASE.replace(/^http/, 'ws')}/agents/${id}/connection/ws?${query}`, {
       headers: { Authorization: `Bearer ${key}` },
     });
+    current = socket;
+
+    // A connection can go silent without closing, for example after the computer sleeps.
+    let lastFrame = Date.now();
+    const watchdog = setInterval(() => {
+      if (Date.now() - lastFrame < STALL_MS) return;
+      console.log('No word from the server, so reconnecting.');
+      clearInterval(watchdog);
+      current = null;
+      setTimeout(connect, RECONNECT_MS);
+      socket.close();
+    }, WATCHDOG_MS);
 
     let final = false;
     socket.onmessage = ({ data: raw }) => {
+      if (socket !== current) return; // a replaced socket's last frames, such as its eviction
+      lastFrame = Date.now();
       const frame = JSON.parse(raw);
       if (frame.event === 'ping') return socket.send(JSON.stringify({ type: 'pong', cursor: cursor ?? 0 }));
       if (frame.event === 'connection_state') {
@@ -234,12 +253,18 @@ async function run() {
         queue = queue.then(() => onMessage(frame.data)).then(() => { cursor = frame.id; });
       }
     };
-    socket.onerror = (event) => console.error('Socket error:', event.message ?? event.type);
+    socket.onerror = (event) => {
+      if (socket === current) console.error('Socket error:', event.message ?? event.type);
+    };
     socket.onclose = ({ code }) => {
+      clearInterval(watchdog);
+      if (socket !== current) return;
       if (final || code === 4401) {
         console.error(`Stopped, close code ${code}.`);
         process.exit(1);
       }
+      // A refused generation would be refused again on every retry, so take the connection back outright.
+      if (code === 4409) generation = null;
       console.log(`Socket closed (${code}), reconnecting.`);
       setTimeout(connect, RECONNECT_MS);
     };

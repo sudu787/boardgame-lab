@@ -62,6 +62,16 @@ We pasted [`examples/ember-line.md`](examples/ember-line.md), a short turn-based
 
 This helps seat 1 but doesn't fully fix it, and seat 2 is still above fair share. The analyst said so too, and suggested a rule change, such as a small bonus for opening, for the Engineer to build.
 
+### The same test on a second computer, with Codex
+
+A teammate followed this README on another Windows computer, using Codex instead of Claude Code for every agent:
+
+- **Salt Run:** all three players noticed the last round decides the game. The analyst wrote its own strategy, `save-final`, and measured it at 60.6% (broken). The referee refused the analyst's rule change, and the designer's change to ×1.5 brought the strategy down to 37.7%.
+- **Ember Line:** the Engineer asked about the gaps and wrote its own game file. Its seat numbers matched the Claude run: 28.1%, 35.6%, 36.2%.
+- **A better fix:** with that game file, the Codex analyst tested scoring the opening card. A score of 3 gave 32.4%, 34.1%, 33.5%, closer to even than the penalty change above.
+
+This run also found real setup problems. They're fixed or explained in [Run it](#run-it).
+
 ## How Switch makes it work
 
 ```mermaid
@@ -91,10 +101,10 @@ Without Switch there is no table: no private seats, no shared room for people an
 
 ## Run it
 
-You need [Switch Console](https://github.com/sandbox-quantum/switch/releases/latest), Docker Desktop (for Mattermost), Node.js 22.9 or newer, and Claude Code signed in. The project itself has no npm dependencies.
+You need [Switch Console](https://github.com/sandbox-quantum/switch/releases/latest), Docker Desktop (for Mattermost), Node.js 22.9 or newer, and Claude Code or Codex signed in. The project itself has no npm dependencies.
 
-1. In Switch Console, choose **Run a server on this computer**. With Docker running, turn on **Mattermost** under **Admin → Status**.
-2. Clone this repository, then register the referee and start it:
+1. In Switch Console, choose **Run a server on this computer**. Do this first, because the referee needs it. With Docker running, turn on **Mattermost** under **Admin → Status**.
+2. Clone this repository, then register the referee and start it, leaving that window open:
 
    ```bash
    npm run referee:register
@@ -105,7 +115,8 @@ You need [Switch Console](https://github.com/sandbox-quantum/switch/releases/lat
    ```
 
    A local Console server has no API Keys page, so `referee:register` reads the admin login Console generated, signs in to your own server and creates the key. It only talks to your local server and saves only the referee's own key, in `.referee.json`. To use another server, set `SWITCH_URL` and `SWITCH_REGISTRATION_KEY` in `.env` (see `.env.example`).
-3. In **Templates → Import template**, choose `templates/boardgame-lab.template.yaml`. Set **Repository folder** to your clone, then select **Create all**.
+   The referee doesn't appear under **Your Agents**, which lists only agents Console runs. It's still there.
+3. In **Templates → Import template**, choose `templates/boardgame-lab.template.yaml`. Set **Repository folder** to your clone, then select **Create all** once. Creating the team takes a few minutes.
 4. In **Your Rooms**, open `lab-table` and send each command by typing the whole line in one go. The referee starts on Salt Run:
 
    ```
@@ -133,6 +144,17 @@ npm run simulate -- --rules game/rules.v1.json
 ```
 
 On its own, the simulator shows only the stock bots. A `saver` row appears once a strategy file exists in `strategies/salt-run/`.
+
+### Using Codex
+
+The template names Claude Code directly. Before importing it, change every `provider: claude` to `provider: codex` and delete every `model: haiku` and `model: sonnet` line. If Console's own Codex installer fails, install it with `npm install -g @openai/codex` and sign in.
+
+### If something goes wrong
+
+- **Create all reports a timeout or "Nothing was created":** this can be wrong. Wait a few minutes and check **Your Rooms** before trying again. Retrying too soon fails with "already exists", or leaves you with a second team.
+- **The referee doesn't answer:** look at its window. Each message it receives is printed there. It reconnects by itself after a dropped connection, so wait 20 seconds and send the command once more.
+- **A message shows no reply and isn't in the referee's window:** retype the whole line in one go, using the full handle `@boardgame-referee`. Don't edit the old message.
+- **A game is stuck:** send `@boardgame-referee stop`.
 
 ### Referee commands
 
@@ -166,4 +188,4 @@ Three players, four rounds. The deck is the cards 1 to 15, and each player is de
 - **The strategies are measured against the stock bots**, not against opponents who adapt.
 - **Windows:** Console 0.40.1 can't fill in a `provider` template field there, so the template names Claude Code directly.
 - **One referee runs one game at a time,** across all playtests. Game state stays in memory on purpose, so hands are never on disk.
-- **Tested on Windows 11 only.**
+- **Tested on Windows only,** with Claude Code and with Codex.
