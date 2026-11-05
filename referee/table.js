@@ -25,6 +25,10 @@ export function beforeAfter(before, after) {
   ].join('\n');
 }
 
+// A rule change that needs new code goes in its own file, such as ember-line-v2, so the old game can still be measured.
+const baseName = (name) => name.replace(/-v\d+$/, '');
+const isNewVersion = (from, to) => from !== to && baseName(from) === baseName(to);
+
 // A playtest's rooms share a prefix: <team>-table, <team>-seat-1 and so on.
 export const teamOf = (roomName) => roomName.match(/^(.+)-(?:table|seat-\d+)$/)?.[1] ?? null;
 
@@ -251,6 +255,7 @@ export class Table {
     if (!GAME_NAME.test(name)) return this.say(table, 'Game names use lowercase letters, digits and hyphens.');
     const { ok, output } = await this.check(name);
     if (!ok) return this.say(table, `Not loaded, because the checker refused it:\n${output}`);
+    const before = isNewVersion(this.rules.game, name) ? (this.lastReport ?? (await this.simulate(this.rules))) : null;
     this.game = await this.loadGame(name);
     this.rules = { game: name, ...this.game.defaults };
     this.state = null;
@@ -258,6 +263,8 @@ export class Table {
     this.lastReport = null;
     if (this.sitting?.seat >= this.rules.players) this.sitting = null;
     await this.saveRules(this.rules);
-    return this.say(table, `${sender} loaded ${this.game.name}.\n${output}`);
+    if (!before) return this.say(table, `${sender} loaded ${this.game.name}.\n${output}`);
+    this.lastReport = await this.simulate(this.rules);
+    return this.say(table, `${sender} loaded ${name}, a new version of the game.\n${output}\n${beforeAfter(before, this.lastReport)}`);
   }
 }

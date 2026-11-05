@@ -204,6 +204,20 @@ test('only a person can load a game, and an agent is refused', async () => {
   assert.match(said('T').at(-1), /priya loaded Turn Taker/);
 });
 
+test('loading a new version of a game shows before and after, and another game does not', async () => {
+  table.loadGame = async () => ({ ...saltRun, defaults: { ...saltRun.defaults, finalTide: 1 } });
+  await send('T', person, '@ref load salt-run-v2');
+  assert.equal(table.rules.finalTide, 1);
+  assert.equal(saved.at(-1).game, 'salt-run-v2');
+  assert.match(said('T').at(-1), /new version/);
+  assert.match(said('T').at(-1), /by seat, before: .*\n.*by seat, after:/);
+
+  table.loadGame = async () => turnTaker;
+  await send('T', person, '@ref load turn-taker');
+  assert.match(said('T').at(-1), /priya loaded Turn Taker/);
+  assert.doesNotMatch(said('T').at(-1), /before/);
+});
+
 test('a game the checker refuses, or a bad name, is not loaded', async () => {
   await send('T', person, '@ref load broken');
   assert.equal(table.game, saltRun);
