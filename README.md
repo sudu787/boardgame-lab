@@ -126,7 +126,7 @@ Without Switch there is no table: no private seats, no shared room for people an
 
 You need [Switch Console](https://github.com/sandbox-quantum/switch/releases/latest), Docker Desktop (for Mattermost), Node.js 22.9 or newer, and Claude Code or Codex signed in. The project itself has no npm dependencies.
 
-1. In Switch Console, choose **Run a server on this computer**. Do this first, because the referee needs it. With Docker running, turn on **Mattermost** under **Admin → Status**.
+1. In Switch Console's first screen, choose **On this computer** (in the Add server dialog, it's **Run a server on this computer**). Do this first, because the referee needs it. With Docker running, turn on **Mattermost** under **Admin → Status**.
 2. Clone this repository, then register the referee and start it, leaving that window open:
 
    ```bash
@@ -140,7 +140,7 @@ You need [Switch Console](https://github.com/sandbox-quantum/switch/releases/lat
    A local Console server has no API Keys page, so `referee:register` reads the admin login Console generated, signs in to your own server and creates the key. It only talks to your local server and saves only the referee's own key, in `.referee.json`. To use another server, set `SWITCH_URL` and `SWITCH_REGISTRATION_KEY` in `.env` (see `.env.example`).
    The referee doesn't appear under **Your Agents**, which lists only agents Console runs. It's still there.
 3. In **Templates → Import template**, choose `templates/boardgame-lab.template.yaml`. Set **Repository folder** to your clone, then select **Create all** once. Creating the team takes a few minutes.
-4. In **Your Rooms**, open `lab-table` and send each command by typing the whole line in one go. The referee starts on Salt Run:
+4. Under **Rooms** in the left menu, open `lab-table` and send each command by typing the whole line in one go. The referee starts on Salt Run:
 
    ```
    @boardgame-referee deal 7
@@ -174,7 +174,7 @@ The template names Claude Code directly. Before importing it, change every `prov
 
 ### If something goes wrong
 
-- **Create all reports a timeout or "Nothing was created":** this can be wrong. Wait a few minutes and check **Your Rooms** before trying again. Retrying too soon fails with "already exists", or leaves you with a second team.
+- **Create all reports a timeout or "Nothing was created":** this can be wrong. Wait a few minutes and check **Rooms** before trying again. Retrying too soon fails with "already exists", or leaves you with a second team.
 - **The referee doesn't answer:** look at its window. Each message it receives is printed there. It reconnects by itself after a dropped connection, so wait 20 seconds and send the command once more.
 - **A message shows no reply and isn't in the referee's window:** retype the whole line in one go, using the full handle `@boardgame-referee`. Don't edit the old message.
 - **A game is stuck:** send `@boardgame-referee stop`.
