@@ -198,6 +198,16 @@ The template names Claude Code directly. Before importing it, change every `prov
 
 Three players, four rounds. The deck is the cards 1 to 15, and each player is dealt four. Each round a cargo lot is revealed and everyone secretly bids a card; the highest card takes the cargo. Every card gets played once, so the last round plays itself. The last lot is multiplied by the Final Tide. Most salt wins.
 
+## What a designer said
+
+We asked for feedback on r/tabletopgamedesign. One designer, rockology_adam, replied:
+
+> I don't mind this, honestly. I don't want AI creating things, but assisting with analysis? Running six thousand games for statistical analysis? This is where AI can help in our community.
+
+They also said they wouldn't be quick to change a game based on the tool's analysis without human play showing something similar. We agree, and it's why the tool leaves the decision to a person.
+
+Quoted with permission. Thanks to [the community on r/tabletopgamedesign](https://www.reddit.com/r/tabletopgamedesign/comments/1xoi641/comment/19s8kp76wjbq8/?context=1) for the feedback.
+
 ## Limits
 
 - **Salt Run's flaw was planted.** The players and analyst weren't told, and the analyst's session log shows it never opened the tests or this README.
